@@ -47,6 +47,19 @@
 
 #include <linux/rbtree.h>
 
+/*
+ * SHARED VARS USED BY JC1DA
+ */
+/*
+ * Have to aquire the mutex to accesss num_jobs var
+ * If num_jobs is 0, any process can access to GPU
+ * If num_jobs > 0, only foreground can access freely, others are forced into waiting queue
+ */
+extern long long n_submitted_jobs;
+extern long long n_finished_jobs;
+extern struct mutex JC_JOBS_MUTEX;
+
+
 /* Forward declaration of struct kbase_device */
 struct kbase_device;
 

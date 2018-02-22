@@ -108,6 +108,109 @@ static int kbase_dev_nr;
 static DEFINE_MUTEX(kbase_dev_list_lock);
 static LIST_HEAD(kbase_dev_list);
 
+
+/* JC1DA's variables */
+#include <linux/proc_fs.h>
+#include <linux/mutex.h>
+#define FG_MONITOR_PROC_NAME "FG_MONITOR_PROC_NAME"
+#define FG_MONITOR_BUF_LENGTH 256
+int fg_pid_len = 0;
+char *fg_monitor_msg = NULL;
+int CUR_FG_PID = 0;
+
+/*
+ * Have to aquire the mutex to accesss num_jobs var
+ * If num_jobs is 0, any process can access to GPU
+ * If num_jobs > 0, only foreground can access freely, others are forced into waiting queue
+ */
+long long n_submitted_jobs = 0;
+long long n_finished_jobs = 0;
+struct mutex JC_JOBS_MUTEX;
+wait_queue_head_t jc_wait_queue;
+
+static int fg_monitor_write(struct file *filp, const char *buf, size_t count,loff_t *offp) {
+	if(count >= FG_MONITOR_BUF_LENGTH) {
+		//ignore this
+		return -ENOSPC;
+	}	
+
+	if(copy_from_user(fg_monitor_msg, buf, count)) {
+		return -EFAULT;
+	}
+
+	fg_pid_len = count;
+	return count;
+}
+
+static int fg_monitor_read(struct file *filp, char *buf, size_t count, loff_t *offp) {
+	/*static int read = 0;
+
+    if(read == fg_pid_len) {
+            read = 0;
+            return 0;
+    }
+
+    if(count > fg_pid_len) {
+            count = fg_pid_len;
+    }
+
+    if(copy_to_user(buf, fg_monitor_msg, count)) {
+            		return -EFAULT;
+    }
+    read += count;
+
+    return count;*/
+
+	static int read = 0;
+    static long long int a = 0;
+    static long long int b = 0;
+    int len;
+    char str[1024]; str[1023] = '\0';
+
+    if(read == 0) {
+            //reupdate current status
+            a = n_finished_jobs;
+            b = n_submitted_jobs;
+    }
+
+    snprintf(str, 1024, "%lld / %lld\n", a, b);
+    len = strlen(str);
+
+    if(read >= len) {
+            read = 0;
+            return 0;
+    }
+
+    if(count > len - read) {
+            count = len - read;
+    }
+
+    if(copy_to_user(buf, &str[read], count)) {
+            return -EFAULT;
+    }
+    read += count;
+
+    return count;
+}
+
+struct file_operations fg_monitor_proc_fops = {
+	.read = fg_monitor_read,
+	.write = fg_monitor_write,
+};
+
+static void create_fg_monitor_proc_entry(void) {
+	proc_create(FG_MONITOR_PROC_NAME, 0, NULL, &fg_monitor_proc_fops);
+	fg_monitor_msg = kmalloc(FG_MONITOR_BUF_LENGTH * sizeof(char), GFP_KERNEL);
+	mutex_init(&JC_JOBS_MUTEX);
+}
+
+static void cleanup_fg_monitor_proc_entry(void) {
+	remove_proc_entry(FG_MONITOR_PROC_NAME, NULL);
+	kfree(fg_monitor_msg);
+	fg_monitor_msg = NULL;
+}
+
+
 #define KERNEL_SIDE_DDK_VERSION_STRING "K:" MALI_RELEASE_NAME "(GPL)"
 static inline void __compile_time_asserts(void)
 {
@@ -776,6 +879,10 @@ copy_failed:
 	case KBASE_FUNC_JOB_SUBMIT:
 		{
 			struct kbase_uk_job_submit *job = args;
+
+			mutex_lock(&JC_JOBS_MUTEX);
+			n_submitted_jobs++;
+			mutex_unlock(&JC_JOBS_MUTEX);
 
 			if (sizeof(*job) != args_size)
 				goto bad_size;
@@ -3805,6 +3912,8 @@ static int kbase_platform_device_remove(struct platform_device *pdev)
 
 	kbase_device_free(kbdev);
 
+	cleanup_fg_monitor_proc_entry();
+
 	return 0;
 }
 
@@ -4043,6 +4152,8 @@ static int kbase_platform_device_probe(struct platform_device *pdev)
 			"Probed as %s\n", dev_name(kbdev->mdev.this_device));
 
 	kbase_dev_nr++;
+
+	create_fg_monitor_proc_entry();
 
 	return err;
 }
