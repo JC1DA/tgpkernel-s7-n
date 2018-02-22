@@ -12,7 +12,7 @@
 export RDIR=$(pwd)
 export VERSION_NUMBER=$(<build/version)
 export ARCH=arm64
-export BUILD_CROSS_COMPILE=~/android/toolchains/aarch64-cortex_a53-linux-gnueabi/bin/aarch64-cortex_a53-linux-gnueabi-
+export BUILD_CROSS_COMPILE=/home/JC1DA/Programs/s7-kernels/aarch64-cortex_a53-linux-gnueabi/bin/aarch64-cortex_a53-linux-gnueabi-
 BUILD_JOB_NUMBER=`grep processor /proc/cpuinfo|wc -l`
 export WORKDIR=$RDIR/.work
 ZIPDIR=$RDIR/.work_zip
