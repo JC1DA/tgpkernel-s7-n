@@ -726,6 +726,11 @@ bool jd_done_nolock(struct kbase_jd_atom *katom,
 	INIT_LIST_HEAD(&completed_jobs);
 	INIT_LIST_HEAD(&runnable_jobs);
 
+	//JC1DA added
+	mutex_lock(&JC_JOBS_MUTEX);
+	n_finished_jobs++;
+	mutex_unlock(&JC_JOBS_MUTEX);
+
 	KBASE_DEBUG_ASSERT(katom->status != KBASE_JD_ATOM_STATE_UNUSED);
 
 #if MALI_CUSTOMER_RELEASE == 0
@@ -1421,11 +1426,6 @@ void kbase_jd_done_worker(struct work_struct *data)
 	u64 affinity = katom->affinity;
 	enum kbase_atom_coreref_state coreref_state = katom->coreref_state;
 
-	//JC1DA added
-	mutex_lock(&JC_JOBS_MUTEX);
-	n_finished_jobs++;
-	mutex_unlock(&JC_JOBS_MUTEX);
-
 	/* Soft jobs should never reach this function */
 	KBASE_DEBUG_ASSERT((katom->core_req & BASE_JD_REQ_SOFT_JOB) == 0);
 
@@ -1613,11 +1613,6 @@ static void jd_cancel_worker(struct work_struct *data)
 	bool need_to_try_schedule_context;
 	bool attr_state_changed;
 	struct kbase_device *kbdev;
-
-	//JC1DA added
-	mutex_lock(&JC_JOBS_MUTEX);
-	n_finished_jobs++;
-	mutex_unlock(&JC_JOBS_MUTEX);
 
 	/* Soft jobs should never reach this function */
 	KBASE_DEBUG_ASSERT((katom->core_req & BASE_JD_REQ_SOFT_JOB) == 0);
