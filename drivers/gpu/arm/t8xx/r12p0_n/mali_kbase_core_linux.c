@@ -878,11 +878,7 @@ copy_failed:
 
 	case KBASE_FUNC_JOB_SUBMIT:
 		{
-			struct kbase_uk_job_submit *job = args;
-
-			mutex_lock(&JC_JOBS_MUTEX);
-			n_submitted_jobs++;
-			mutex_unlock(&JC_JOBS_MUTEX);
+			struct kbase_uk_job_submit *job = args;			
 
 			if (sizeof(*job) != args_size)
 				goto bad_size;
