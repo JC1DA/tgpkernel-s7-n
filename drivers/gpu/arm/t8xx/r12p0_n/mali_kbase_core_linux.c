@@ -186,7 +186,7 @@ void jc_sched_wait_for_approval(void) {
 }
 
 void jc_sched_wakeup_tasks(void) {
-	wake_up_interruptible(&JC_SINGLE_WQ);
+	wake_up_interruptible(&JC_WQ);
 }
 
 struct file_operations fg_monitor_proc_fops = {
