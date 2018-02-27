@@ -321,14 +321,12 @@ BUILD_PREPARE
 FUNC_BUILD_BOOTIMG
 BUILD_CLEAN
 mv -f $WORKDIR/ramdisk/image-new.img $ZIPDIR/tgpkernel/kernels/boot.img
-
-#Remove Edge model
-#MODEL=hero2lte
-#LOGFILE=$OUTPUT/build-s7e-r12p0.log
-#BUILD_PREPARE
-#FUNC_BUILD_BOOTIMG
-#BUILD_CLEAN
-#mv -f $WORKDIR/ramdisk/image-new.img $ZIPDIR/tgpkernel/kernels/boot2.img
+MODEL=hero2lte
+LOGFILE=$OUTPUT/build-s7e-r12p0.log
+BUILD_PREPARE
+FUNC_BUILD_BOOTIMG
+BUILD_CLEAN
+mv -f $WORKDIR/ramdisk/image-new.img $ZIPDIR/tgpkernel/kernels/boot2.img
 
 # Build S7 r15p0 .img files
 
