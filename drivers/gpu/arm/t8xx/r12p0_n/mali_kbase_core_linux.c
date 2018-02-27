@@ -114,23 +114,25 @@ static LIST_HEAD(kbase_dev_list);
 #include <linux/mutex.h>
 #define FG_MONITOR_PROC_NAME "FG_MONITOR_PROC_NAME"
 #define FG_MONITOR_BUF_LENGTH 256
-int fg_pid_len = 0;
-char *fg_monitor_msg = NULL;
-pid_t CUR_FG_PID = 0;
-int ALL_TASKS_ENABLED = 0;
+static int fg_pid_len = 0;
+static char *fg_monitor_msg = NULL;
+static pid_t CUR_FG_PID = 0;
 
 /*
- * Have to aquire the mutex to accesss num_jobs var
- * If num_jobs is 0, any process can access to GPU
- * If num_jobs > 0, only foreground can access freely, others are forced into waiting queue
+ * The idea is each blocked katom will be assigned to an ID based on WAITING_JOBS_COUNTERS
+ * for each katom that is finished, we will wake up only few jobs with wait_event_interruptible(WG, CUR_FG_PID==pid || COUNTER > id);
+ * this will help us to wake up multiple tasks at the same time (COUNTER += k)
+ * or just wake up tasks with specific pid (when FG task is changed)
  */
-long long n_submitted_jobs = 0;
-long long n_finished_jobs = 0;
+
+static int IS_FG_RUNNING = 0;
+static unsigned long long int WAITING_JOBS_COUNTERS = 0;
+static unsigned long long int COUNTER = 0;
 
 struct mutex JC_JOBS_MUTEX;
 static wait_queue_head_t JC_WQ;
 
-static int fg_monitor_write(struct file *filp, const char *buf, size_t count,loff_t *offp) {
+static ssize_t fg_monitor_write(struct file *filp, const char *buf, size_t count,loff_t *offp) {
 	if(count >= FG_MONITOR_BUF_LENGTH - 1) {
 		//ignore this
 		return -ENOSPC;
@@ -147,12 +149,12 @@ static int fg_monitor_write(struct file *filp, const char *buf, size_t count,lof
 	mutex_unlock(&JC_JOBS_MUTEX);
 
 	//wake up blocked tasks
-	wake_up_interruptible(&JC_WQ);
+	jc_sched_wakeup_tasks();
 
 	return count;
 }
 
-static int fg_monitor_read(struct file *filp, char *buf, size_t count, loff_t *offp) {
+static ssize_t fg_monitor_read(struct file *filp, char *buf, size_t count, loff_t *offp) {
 	if(*offp >= fg_pid_len) {
 		return 0;
 	}
@@ -172,20 +174,34 @@ static int fg_monitor_read(struct file *filp, char *buf, size_t count, loff_t *o
 void jc_sched_wait_for_approval(void) {
 	pid_t pid = task_pid_nr(current);
 	pid_t passthrough_pid = 0;
-	int all_tasks_enabled = 0;
+	int is_blocked = 0;
+	int queue_id = -1;
 
 	mutex_lock(&JC_JOBS_MUTEX);
 	passthrough_pid = CUR_FG_PID;
-	all_tasks_enabled = ALL_TASKS_ENABLED;
+	if(passthrough_pid != 0 && pid != passthrough_pid) {
+		is_blocked = 1;
+	}
 	mutex_unlock(&JC_JOBS_MUTEX);
 
-	if(all_tasks_enabled != 1 && passthrough_pid != 0 && pid != passthrough_pid) {
+	if(is_blocked == 1) {
+		//getting queue ID;
+		mutex_lock(&JC_JOBS_MUTEX);
+		queue_id = WAITING_JOBS_COUNTERS + 1;
+		WAITING_JOBS_COUNTERS++;
+		mutex_unlock(&JC_JOBS_MUTEX);
+
 		//we're going to block this process
-		wait_event_interruptible(JC_WQ, CUR_FG_PID==pid || CUR_FG_PID==0 || ALL_TASKS_ENABLED==1);
+		wait_event_interruptible(JC_WQ, CUR_FG_PID == 0 || CUR_FG_PID == pid || COUNTER >= queue_id);
 	}
 }
 
 void jc_sched_wakeup_tasks(void) {
+	//only increase counters when there is job
+	mutex_lock(&JC_JOBS_MUTEX);
+	if(COUNTER <= WAITING_JOBS_COUNTERS)
+		COUNTER += 1;
+	mutex_unlock(&JC_JOBS_MUTEX);
 	wake_up_interruptible(&JC_WQ);
 }
 
