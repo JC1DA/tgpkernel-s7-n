@@ -911,6 +911,7 @@ bool jd_submit_atom(struct kbase_context *kctx,
 	int sched_prio;
 	bool ret;
 	bool will_fail = false;
+	pid_t pid = -1;
 
 	/* Update the TOTAL number of jobs. This includes those not tracked by
 	 * the scheduler: 'not ready to run' and 'dependency-only' jobs. */
@@ -1191,6 +1192,8 @@ bool jd_submit_atom(struct kbase_context *kctx,
 
 	if(IS_GPU_ATOM(katom)) {
 		//this is gpu atom, check if we allow it to passthrough or not
+		pid_t pid = task_pid_nr(current);
+		printk(KERN_INFO "pid: %d - katom->kctx->pid: %d", pid, katom->kctx->pid);
 		jc_sched_wait_for_approval();
 	}
 
