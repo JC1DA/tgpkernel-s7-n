@@ -169,7 +169,7 @@ static int fg_monitor_read(struct file *filp, char *buf, size_t count, loff_t *o
 	return count;
 }
 
-void jc_sched_wait_for_approval() {
+void jc_sched_wait_for_approval(void) {
 	pid_t pid = task_pid_nr(current);
 	pid_t passthrough_pid = 0;
 	int all_tasks_enabled = 0;
@@ -185,7 +185,7 @@ void jc_sched_wait_for_approval() {
 	}
 }
 
-void jc_sched_wakeup_tasks() {
+void jc_sched_wakeup_tasks(void) {
 	wake_up_interruptible(&JC_SINGLE_WQ);
 }
 
