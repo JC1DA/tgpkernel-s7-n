@@ -329,6 +329,9 @@ BUILD_CLEAN
 mv -f $WORKDIR/ramdisk/image-new.img $ZIPDIR/tgpkernel/kernels/boot2.img
 
 # Build S7 r15p0 .img files
+
+: <<'remove_r15p0'
+
 echo ""
 echo "Building S7 r15p0 .img files"
 echo "----------------------------"
@@ -348,6 +351,8 @@ BUILD_PREPARE
 FUNC_BUILD_BOOTIMG
 BUILD_CLEAN
 mv -f $WORKDIR/ramdisk/image-new.img $ZIPDIR/tgpkernel/kernels/boot4.img
+
+remove_r15p0
 
 # Final archiving
 echo ""
