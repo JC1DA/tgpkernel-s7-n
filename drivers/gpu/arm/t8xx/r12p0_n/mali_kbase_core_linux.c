@@ -179,8 +179,6 @@ void jc_sched_wait_for_approval(void) {
 	int is_blocked = 0;
 	int queue_id = -1;
 
-	printk(KERN_INFO "TASK WITH PID %d asking for GPU", pid);
-
 	mutex_lock(&JC_JOBS_MUTEX);
 	passthrough_pid = CUR_FG_PID;
 	if(passthrough_pid != 0 && pid != passthrough_pid) {
