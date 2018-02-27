@@ -148,6 +148,8 @@ static ssize_t fg_monitor_write(struct file *filp, const char *buf, size_t count
 	sscanf(fg_monitor_msg, "%d", &CUR_FG_PID);
 	mutex_unlock(&JC_JOBS_MUTEX);
 
+	printk(KERN_INFO "CHANGED FG_TASK_PID INTO %d", CUR_FG_PID);
+
 	//wake up blocked tasks
 	jc_sched_wakeup_tasks();
 
@@ -176,6 +178,8 @@ void jc_sched_wait_for_approval(void) {
 	pid_t passthrough_pid = 0;
 	int is_blocked = 0;
 	int queue_id = -1;
+
+	printk(KERN_INFO "TASK WITH PID %d asking for GPU", pid);
 
 	mutex_lock(&JC_JOBS_MUTEX);
 	passthrough_pid = CUR_FG_PID;
