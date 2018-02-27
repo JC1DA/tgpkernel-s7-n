@@ -116,7 +116,8 @@ static LIST_HEAD(kbase_dev_list);
 #define FG_MONITOR_BUF_LENGTH 256
 int fg_pid_len = 0;
 char *fg_monitor_msg = NULL;
-int CUR_FG_PID = 0;
+pid_t CUR_FG_PID = 0;
+int ALL_TASKS_ENABLED = 0;
 
 /*
  * Have to aquire the mutex to accesss num_jobs var
@@ -125,11 +126,12 @@ int CUR_FG_PID = 0;
  */
 long long n_submitted_jobs = 0;
 long long n_finished_jobs = 0;
+
 struct mutex JC_JOBS_MUTEX;
-wait_queue_head_t jc_wait_queue;
+static wait_queue_head_t JC_WQ;
 
 static int fg_monitor_write(struct file *filp, const char *buf, size_t count,loff_t *offp) {
-	if(count >= FG_MONITOR_BUF_LENGTH) {
+	if(count >= FG_MONITOR_BUF_LENGTH - 1) {
 		//ignore this
 		return -ENOSPC;
 	}	
@@ -137,60 +139,54 @@ static int fg_monitor_write(struct file *filp, const char *buf, size_t count,lof
 	if(copy_from_user(fg_monitor_msg, buf, count)) {
 		return -EFAULT;
 	}
+	fg_monitor_msg[count] = '\0';
+	fg_pid_len = count + 1;
 
-	fg_pid_len = count;
+	mutex_lock(&JC_JOBS_MUTEX);
+	sscanf(fg_monitor_msg, "%d", &CUR_FG_PID);
+	mutex_unlock(&JC_JOBS_MUTEX);
+
+	//wake up blocked tasks
+	wake_up_interruptible(&JC_WQ);
+
 	return count;
 }
 
 static int fg_monitor_read(struct file *filp, char *buf, size_t count, loff_t *offp) {
-	/*static int read = 0;
+	if(*offp >= fg_pid_len) {
+		return 0;
+	}
 
-    if(read == fg_pid_len) {
-            read = 0;
-            return 0;
-    }
+	if(*offp + count > fg_pid_len) {
+		count = fg_pid_len - *offp;
+	}
 
-    if(count > fg_pid_len) {
-            count = fg_pid_len;
-    }
+	if(copy_to_user(buf, &fg_monitor_msg[*offp], count)) {
+		return -EFAULT;
+	}
+	*offp += count;
 
-    if(copy_to_user(buf, fg_monitor_msg, count)) {
-            		return -EFAULT;
-    }
-    read += count;
+	return count;
+}
 
-    return count;*/
+void jc_sched_wait_for_approval() {
+	pid_t pid = task_pid_nr(current);
+	pid_t passthrough_pid = 0;
+	int all_tasks_enabled = 0;
 
-	static int read = 0;
-    static long long int a = 0;
-    static long long int b = 0;
-    int len;
-    char str[1024]; str[1023] = '\0';
+	mutex_lock(&JC_JOBS_MUTEX);
+	passthrough_pid = CUR_FG_PID;
+	all_tasks_enabled = ALL_TASKS_ENABLED;
+	mutex_unlock(&JC_JOBS_MUTEX);
 
-    if(read == 0) {
-            //reupdate current status
-            a = n_finished_jobs;
-            b = n_submitted_jobs;
-    }
+	if(all_tasks_enabled != 1 && passthrough_pid != 0 && pid != passthrough_pid) {
+		//we're going to block this process
+		wait_event_interruptible(JC_WQ, CUR_FG_PID==pid || CUR_FG_PID==0 || ALL_TASKS_ENABLED==1);
+	}
+}
 
-    snprintf(str, 1024, "%lld / %lld\n", a, b);
-    len = strlen(str);
-
-    if(read >= len) {
-            read = 0;
-            return 0;
-    }
-
-    if(count > len - read) {
-            count = len - read;
-    }
-
-    if(copy_to_user(buf, &str[read], count)) {
-            return -EFAULT;
-    }
-    read += count;
-
-    return count;
+void jc_sched_wakeup_tasks() {
+	wake_up_interruptible(&JC_SINGLE_WQ);
 }
 
 struct file_operations fg_monitor_proc_fops = {
