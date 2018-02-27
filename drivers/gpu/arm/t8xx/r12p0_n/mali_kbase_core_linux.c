@@ -214,7 +214,7 @@ struct file_operations fg_monitor_proc_fops = {
 static void create_fg_monitor_proc_entry(void) {
 	proc_create(FG_MONITOR_PROC_NAME, 0, NULL, &fg_monitor_proc_fops);
 	fg_monitor_msg = kmalloc(FG_MONITOR_BUF_LENGTH * sizeof(char), GFP_KERNEL);
-	//mutex_init(&JC_JOBS_MUTEX);
+	init_waitqueue_head(&JC_WQ);
 }
 
 static void cleanup_fg_monitor_proc_entry(void) {
