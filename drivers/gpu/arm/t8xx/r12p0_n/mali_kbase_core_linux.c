@@ -125,11 +125,11 @@ static pid_t CUR_FG_PID = 0;
  * or just wake up tasks with specific pid (when FG task is changed)
  */
 
-static int IS_FG_RUNNING = 0;
+//static int IS_FG_RUNNING = 0;
 static unsigned long long int WAITING_JOBS_COUNTERS = 0;
 static unsigned long long int COUNTER = 0;
 
-struct mutex JC_JOBS_MUTEX;
+static DECLARE_MUTEX(JC_JOBS_MUTEX);
 static wait_queue_head_t JC_WQ;
 
 static ssize_t fg_monitor_write(struct file *filp, const char *buf, size_t count,loff_t *offp) {
@@ -202,6 +202,7 @@ void jc_sched_wakeup_tasks(void) {
 	if(COUNTER <= WAITING_JOBS_COUNTERS)
 		COUNTER += 1;
 	mutex_unlock(&JC_JOBS_MUTEX);
+
 	wake_up_interruptible(&JC_WQ);
 }
 
@@ -213,7 +214,7 @@ struct file_operations fg_monitor_proc_fops = {
 static void create_fg_monitor_proc_entry(void) {
 	proc_create(FG_MONITOR_PROC_NAME, 0, NULL, &fg_monitor_proc_fops);
 	fg_monitor_msg = kmalloc(FG_MONITOR_BUF_LENGTH * sizeof(char), GFP_KERNEL);
-	mutex_init(&JC_JOBS_MUTEX);
+	//mutex_init(&JC_JOBS_MUTEX);
 }
 
 static void cleanup_fg_monitor_proc_entry(void) {
