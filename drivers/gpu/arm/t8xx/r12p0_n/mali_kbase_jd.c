@@ -911,8 +911,7 @@ bool jd_submit_atom(struct kbase_context *kctx,
 	int sched_prio;
 	bool ret;
 	bool will_fail = false;
-	pid_t pid = -1;
-
+	
 	/* Update the TOTAL number of jobs. This includes those not tracked by
 	 * the scheduler: 'not ready to run' and 'dependency-only' jobs. */
 	jctx->job_nr++;
