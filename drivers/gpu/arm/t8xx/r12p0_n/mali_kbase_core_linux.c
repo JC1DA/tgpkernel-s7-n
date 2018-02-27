@@ -129,7 +129,7 @@ static pid_t CUR_FG_PID = 0;
 static unsigned long long int WAITING_JOBS_COUNTERS = 0;
 static unsigned long long int COUNTER = 0;
 
-static DECLARE_MUTEX(JC_JOBS_MUTEX);
+static DEFINE_MUTEX(JC_JOBS_MUTEX);
 static wait_queue_head_t JC_WQ;
 
 static ssize_t fg_monitor_write(struct file *filp, const char *buf, size_t count,loff_t *offp) {
