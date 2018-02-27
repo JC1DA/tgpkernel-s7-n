@@ -59,6 +59,9 @@ extern long long n_submitted_jobs;
 extern long long n_finished_jobs;
 extern struct mutex JC_JOBS_MUTEX;
 
+void jc_sched_wait_for_approval();
+void jc_sched_wakeup_tasks();
+
 
 /* Forward declaration of struct kbase_device */
 struct kbase_device;

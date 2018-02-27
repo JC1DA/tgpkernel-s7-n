@@ -728,9 +728,8 @@ bool jd_done_nolock(struct kbase_jd_atom *katom,
 
 	//JC1DA added
 	if(IS_GPU_ATOM(katom)) {
-		mutex_lock(&JC_JOBS_MUTEX);
-		n_finished_jobs++;
-		mutex_unlock(&JC_JOBS_MUTEX);
+		//one gpu atom is finished, wake up tasks
+		jc_sched_wakeup_tasks();
 	}	
 
 	KBASE_DEBUG_ASSERT(katom->status != KBASE_JD_ATOM_STATE_UNUSED);
@@ -1191,9 +1190,8 @@ bool jd_submit_atom(struct kbase_context *kctx,
 #endif
 
 	if(IS_GPU_ATOM(katom)) {
-		mutex_lock(&JC_JOBS_MUTEX);
-		n_submitted_jobs++;
-		mutex_unlock(&JC_JOBS_MUTEX);
+		//this is gpu atom, check if we allow it to passthrough or not
+		jc_sched_wait_for_approval();
 	}
 
 	if (queued && !IS_GPU_ATOM(katom)) {
